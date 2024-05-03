@@ -13,12 +13,12 @@ class Module(core.module.Module):
         self.__text = f"device mounted at {self.__mountpoint}"
         #self.__bus = dbus.SystemBus()
         self.clicked = False
-        self.err = []
+        self.err = "not touched"
 
         event = {
             "type": "unmount",
             "action": self.unmount_USB,
-            "button": core.input.RIGHT_MOUSE
+            "button": core.input.LEFT_MOUSE
         }
 
         core.input.register(self, button=event["button"], cmd=event["action"])
@@ -40,12 +40,15 @@ class Module(core.module.Module):
                 'org.freedesktop.UDisks2.Filesystem' in interfaces and \
                 interfaces['org.freedesktop.UDisks2.Filesystem']['MountPoints']:
 
-                mountpoint = bytes(interfaces['org.freedesktop.UDisks2.Filesystem']['MountPoints'][0]).decode('utf-8').rstrip('\x00')
-                if mountpoint == self.__mountpoint:
-                    filesystem = bus.get_object('org.freedesktop.UDisks2', objPath)
-                    
+                mountpoint = interfaces['org.freedesktop.UDisks2.Filesystem']['MountPoints'][0]
+                if bytes(mountpoint).decode('utf-8').rstrip('\x00') == self.__mountpoint:
+                    filesystem_obj = bus.get_object('org.freedesktop.UDisks2', objPath)
+                    filesystem = dbus.Interface(filesystem_obj, 'org.freedesktop.UDisks2.Filesystem')
+
                     try:
-                        filesystem.Unmount(dbus.Dictionary({}, signature='sv'))
+                        options = dbus.Dictionary(signature='sv')
+                        filesystem.Unmount(options)
+                        self.err = "done?"
                     except Exception as e:
                         self.err = str(e)
                         return
